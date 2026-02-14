@@ -23,6 +23,7 @@ function App() {
   const [noteListWidth, setNoteListWidth] = useState(300)
   const [inspectorWidth, setInspectorWidth] = useState(280)
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false)
+  const [allContent, setAllContent] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const loadVault = async () => {
@@ -38,6 +39,16 @@ function App() {
         }
         console.log(`Vault scan complete: ${result.length} entries found`)
         setEntries(result)
+
+        // Load all content for backlink scanning
+        let content: Record<string, string>
+        if (isTauri()) {
+          // TODO: Add Tauri command for batch content loading
+          content = {}
+        } else {
+          content = await mockInvoke<Record<string, string>>('get_all_content', {})
+        }
+        setAllContent(content)
       } catch (err) {
         console.warn('Vault scan failed:', err)
       }
@@ -162,6 +173,7 @@ function App() {
           entry={activeTab?.entry ?? null}
           content={activeTab?.content ?? null}
           entries={entries}
+          allContent={allContent}
           onNavigate={handleNavigateWikilink}
         />
       </div>

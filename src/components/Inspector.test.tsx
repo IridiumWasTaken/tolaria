@@ -29,12 +29,33 @@ status: Active
 This is a test note with some words to count.
 `
 
+const referrerEntry: VaultEntry = {
+  path: '/vault/note/referrer.md',
+  filename: 'referrer.md',
+  title: 'Referrer Note',
+  isA: 'Note',
+  aliases: [],
+  belongsTo: [],
+  relatedTo: [],
+  status: null,
+  owner: null,
+  cadence: null,
+  modifiedAt: 1707900000,
+  fileSize: 200,
+}
+
+const allContent: Record<string, string> = {
+  '/vault/note/referrer.md': '# Referrer\n\nSee [[Test Project]] for details.',
+  '/vault/project/test.md': '# Test Project\n\nSome content.',
+}
+
 const defaultProps = {
   collapsed: false,
   onToggle: () => {},
   entry: null as VaultEntry | null,
   content: null as string | null,
   entries: [] as VaultEntry[],
+  allContent: {} as Record<string, string>,
   onNavigate: () => {},
 }
 
@@ -115,5 +136,48 @@ describe('Inspector', () => {
     const noRels = { ...mockEntry, belongsTo: [], relatedTo: [] }
     render(<Inspector {...defaultProps} entry={noRels} content={mockContent} />)
     expect(screen.getByText('No relationships')).toBeInTheDocument()
+  })
+
+  it('shows backlinks from notes that reference the current note', () => {
+    render(
+      <Inspector
+        {...defaultProps}
+        entry={mockEntry}
+        content={mockContent}
+        entries={[mockEntry, referrerEntry]}
+        allContent={allContent}
+      />
+    )
+    expect(screen.getByText('Referrer Note')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument() // count badge
+  })
+
+  it('shows "No backlinks" when no notes reference the current note', () => {
+    render(
+      <Inspector
+        {...defaultProps}
+        entry={mockEntry}
+        content={mockContent}
+        entries={[mockEntry]}
+        allContent={{}}
+      />
+    )
+    expect(screen.getByText('No backlinks')).toBeInTheDocument()
+  })
+
+  it('navigates when a backlink is clicked', () => {
+    const onNavigate = vi.fn()
+    render(
+      <Inspector
+        {...defaultProps}
+        entry={mockEntry}
+        content={mockContent}
+        entries={[mockEntry, referrerEntry]}
+        allContent={allContent}
+        onNavigate={onNavigate}
+      />
+    )
+    fireEvent.click(screen.getByText('Referrer Note'))
+    expect(onNavigate).toHaveBeenCalledWith('Referrer Note')
   })
 })

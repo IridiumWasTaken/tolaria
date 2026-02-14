@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import type { VaultEntry } from '../types'
 import './Inspector.css'
 
@@ -7,6 +8,7 @@ interface InspectorProps {
   entry: VaultEntry | null
   content: string | null
   entries: VaultEntry[]
+  allContent: Record<string, string>
   onNavigate: (target: string) => void
 }
 
@@ -139,7 +141,64 @@ function PropertiesPanel({ entry, content }: { entry: VaultEntry; content: strin
   )
 }
 
-export function Inspector({ collapsed, onToggle, entry, content, entries, onNavigate }: InspectorProps) {
+/** Find all entries whose content contains a wikilink to the current note */
+function useBacklinks(
+  entry: VaultEntry | null,
+  entries: VaultEntry[],
+  allContent: Record<string, string>
+): VaultEntry[] {
+  return useMemo(() => {
+    if (!entry) return []
+    // Build patterns to match: [[title]], [[filename-without-ext]], [[path-segment/filename-without-ext]]
+    const title = entry.title
+    const stem = entry.filename.replace(/\.md$/, '')
+    // Also match by aliases
+    const targets = [title, ...entry.aliases]
+    // Also match path-based links like [[project/26q1-laputa-app]]
+    const pathStem = entry.path.replace(/^.*\/Laputa\//, '').replace(/\.md$/, '')
+
+    return entries.filter((e) => {
+      if (e.path === entry.path) return false
+      const content = allContent[e.path]
+      if (!content) return false
+      // Check for any [[target]] pattern in the content
+      for (const t of targets) {
+        if (content.includes(`[[${t}]]`)) return true
+      }
+      if (content.includes(`[[${stem}]]`)) return true
+      if (content.includes(`[[${pathStem}]]`)) return true
+      return false
+    })
+  }, [entry, entries, allContent])
+}
+
+function BacklinksPanel({ backlinks, onNavigate }: { backlinks: VaultEntry[]; onNavigate: (target: string) => void }) {
+  return (
+    <div className="inspector__section">
+      <h4>Backlinks {backlinks.length > 0 && <span className="inspector__count">{backlinks.length}</span>}</h4>
+      {backlinks.length === 0 ? (
+        <p className="inspector__empty">No backlinks</p>
+      ) : (
+        <div className="inspector__backlinks">
+          {backlinks.map((e) => (
+            <button
+              key={e.path}
+              className="inspector__backlink"
+              onClick={() => onNavigate(e.title)}
+            >
+              <span className="inspector__backlink-title">{e.title}</span>
+              {e.isA && <span className="inspector__backlink-type">{e.isA}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function Inspector({ collapsed, onToggle, entry, content, entries, allContent, onNavigate }: InspectorProps) {
+  const backlinks = useBacklinks(entry, entries, allContent)
+
   return (
     <aside className={`inspector ${collapsed ? 'inspector--collapsed' : ''}`}>
       <div className="inspector__header">
@@ -154,6 +213,7 @@ export function Inspector({ collapsed, onToggle, entry, content, entries, onNavi
             <>
               <PropertiesPanel entry={entry} content={content} />
               <RelationshipsPanel entry={entry} onNavigate={onNavigate} />
+              <BacklinksPanel backlinks={backlinks} onNavigate={onNavigate} />
             </>
           ) : (
             <>
@@ -164,6 +224,10 @@ export function Inspector({ collapsed, onToggle, entry, content, entries, onNavi
               <div className="inspector__section">
                 <h4>Relationships</h4>
                 <p className="inspector__empty">No relationships</p>
+              </div>
+              <div className="inspector__section">
+                <h4>Backlinks</h4>
+                <p className="inspector__empty">No backlinks</p>
               </div>
             </>
           )}

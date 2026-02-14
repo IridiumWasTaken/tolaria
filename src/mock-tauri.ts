@@ -493,6 +493,7 @@ const MOCK_ENTRIES: VaultEntry[] = [
 const mockHandlers: Record<string, (args: any) => any> = {
   list_vault: () => MOCK_ENTRIES,
   get_note_content: (args: { path: string }) => MOCK_CONTENT[args.path] ?? '',
+  get_all_content: () => MOCK_CONTENT,
 }
 
 export function isTauri(): boolean {
