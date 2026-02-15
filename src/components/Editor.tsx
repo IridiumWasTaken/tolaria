@@ -4,9 +4,17 @@ import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLi
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from '@codemirror/language'
-import { livePreview } from './livePreview'
+import {
+  livePreviewPlugin,
+  markdownStylePlugin,
+  editorTheme as libraryEditorTheme,
+  mouseSelectingField,
+  collapseOnSelectionFacet,
+  setMouseSelecting,
+  linkPlugin,
+  codeBlockField,
+} from 'codemirror-live-markdown'
 import { frontmatterHide, findFrontmatter } from './frontmatterHide'
-import { wikilinks } from './wikilinks'
 import type { VaultEntry } from '../types'
 import './Editor.css'
 
@@ -25,26 +33,20 @@ interface EditorProps {
   isModified?: (path: string) => boolean
 }
 
-const editorTheme = EditorView.theme({
+/** Theme overrides — maps the library's colors to our CSS variables for light/dark support */
+const editorThemeOverrides = EditorView.theme({
   '&': {
-    height: '100%',
     fontSize: '15px',
     backgroundColor: 'var(--bg-primary)',
     color: 'var(--text-primary)',
   },
   '.cm-scroller': {
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
     padding: '20px 0',
-    lineHeight: '1.7',
   },
   '.cm-content': {
     padding: '0 40px',
     maxWidth: '760px',
     caretColor: 'var(--text-primary)',
-  },
-  '.cm-line': {
-    paddingTop: '1px',
-    paddingBottom: '1px',
   },
   '.cm-gutters': {
     background: 'var(--bg-primary)',
@@ -66,6 +68,38 @@ const editorTheme = EditorView.theme({
   },
   '&.cm-focused .cm-selectionBackground': {
     background: 'var(--bg-selected) !important',
+  },
+  // Override library heading/inline colors to use our CSS variables
+  '.cm-header-1, .cm-header-2, .cm-header-3, .cm-header-4, .cm-header-5, .cm-header-6': {
+    color: 'var(--text-heading)',
+  },
+  '.cm-strong': {
+    color: 'var(--text-primary)',
+  },
+  '.cm-emphasis': {
+    color: 'var(--text-primary)',
+  },
+  '.cm-strikethrough': {
+    color: 'var(--text-tertiary)',
+  },
+  '.cm-code': {
+    backgroundColor: 'var(--bg-hover-subtle)',
+    fontFamily: '"SF Mono", "Fira Code", "Cascadia Code", monospace',
+    fontSize: '0.9em',
+  },
+  '.cm-link': {
+    color: 'var(--accent-blue)',
+  },
+  '.cm-wikilink': {
+    color: 'var(--accent-blue)',
+    borderBottom: '1px dotted var(--accent-blue)',
+    textDecoration: 'none',
+  },
+  '.cm-formatting-inline': {
+    color: 'var(--text-faint)',
+  },
+  '.cm-formatting-block': {
+    color: 'var(--text-faint)',
   },
 })
 
@@ -168,10 +202,18 @@ export function Editor({ tabs, activeTabPath, onSwitchTab, onCloseTab, onNavigat
         bracketMatching(),
         markdown(),
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-        editorTheme,
-        livePreview(),
+        // codemirror-live-markdown extensions
+        collapseOnSelectionFacet.of(true),
+        mouseSelectingField,
+        livePreviewPlugin,
+        markdownStylePlugin,
+        libraryEditorTheme,
+        editorThemeOverrides,
+        linkPlugin({
+          onWikiLinkClick: (target) => navigateRef.current(target),
+        }),
+        codeBlockField({ copyButton: true }),
         frontmatterHide(),
-        wikilinks((target) => navigateRef.current(target)),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         EditorView.lineWrapping,
       ],
@@ -182,9 +224,25 @@ export function Editor({ tabs, activeTabPath, onSwitchTab, onCloseTab, onNavigat
       parent: containerRef.current,
     })
 
+    // Mouse selection tracking for codemirror-live-markdown
+    let destroyed = false
+    view.contentDOM.addEventListener('mousedown', () => {
+      view.dispatch({ effects: setMouseSelecting.of(true) })
+    })
+    const handleMouseUp = () => {
+      requestAnimationFrame(() => {
+        if (!destroyed) {
+          view.dispatch({ effects: setMouseSelecting.of(false) })
+        }
+      })
+    }
+    document.addEventListener('mouseup', handleMouseUp)
+
     viewRef.current = view
 
     return () => {
+      destroyed = true
+      document.removeEventListener('mouseup', handleMouseUp)
       view.destroy()
       viewRef.current = null
     }
