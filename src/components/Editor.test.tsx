@@ -1,6 +1,20 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 
+// Hoisted mock editor — available before vi.mock factory runs.
+// Tests can reconfigure spies (e.g. mockTryParse.mockResolvedValue) before rendering.
+const mockEditor = vi.hoisted(() => ({
+  tryParseMarkdownToBlocks: vi.fn(async () => [] as any[]),
+  replaceBlocks: vi.fn(),
+  insertBlocks: vi.fn(),
+  document: [{ id: '1', type: 'paragraph', content: [], props: {}, children: [] }],
+  insertInlineContent: vi.fn(),
+  onMount: vi.fn((cb: () => void) => { cb(); return () => {} }),
+  prosemirrorView: {} as any,
+  blocksToHTMLLossy: vi.fn(() => ''),
+  _tiptapEditor: { commands: { setContent: vi.fn() } },
+}))
+
 // Mock BlockNote components
 vi.mock('@blocknote/core', () => ({
   BlockNoteSchema: { create: () => ({}) },
@@ -14,13 +28,7 @@ vi.mock('@blocknote/core/extensions', () => ({
 
 vi.mock('@blocknote/react', () => ({
   createReactInlineContentSpec: () => ({ render: () => null }),
-  useCreateBlockNote: () => ({
-    tryParseMarkdownToBlocks: async () => [],
-    replaceBlocks: () => {},
-    document: [],
-    insertInlineContent: () => {},
-    onMount: (cb: () => void) => { cb(); return () => {} },
-  }),
+  useCreateBlockNote: () => mockEditor,
   SuggestionMenuController: () => null,
 }))
 
@@ -222,5 +230,38 @@ describe('Editor', () => {
     )
     // Inspector renders "Properties" header
     expect(screen.getAllByText('Properties').length).toBeGreaterThan(0)
+  })
+
+  // Regression: editor content did not appear on first load because BlockNote's
+  // replaceBlocks/insertBlocks internally calls flushSync, which fails silently
+  // when invoked from within React's useEffect. Fix: defer via queueMicrotask.
+  it('applies parsed content blocks via deferred microtask (regression: flushSync-in-lifecycle)', async () => {
+    const testBlocks = [
+      { id: 'b1', type: 'paragraph', content: [{ type: 'text', text: 'Hello world' }], props: {}, children: [] },
+    ]
+    mockEditor.tryParseMarkdownToBlocks.mockResolvedValue(testBlocks)
+    mockEditor.replaceBlocks.mockClear()
+    mockEditor.insertBlocks.mockClear()
+
+    render(
+      <Editor
+        {...defaultProps}
+        tabs={[mockTab]}
+        activeTabPath={mockEntry.path}
+      />
+    )
+
+    // Content swap is deferred via queueMicrotask — should NOT be called synchronously
+    expect(mockEditor.replaceBlocks).not.toHaveBeenCalled()
+
+    // After microtask + async parse resolve, blocks should be applied
+    await vi.waitFor(() => {
+      expect(mockEditor.replaceBlocks).toHaveBeenCalled()
+    })
+
+    // Clean up mock for other tests
+    mockEditor.tryParseMarkdownToBlocks.mockResolvedValue([])
+    mockEditor.replaceBlocks.mockClear()
+    mockEditor.insertBlocks.mockClear()
   })
 })
