@@ -6,6 +6,7 @@ import {
   GitBranch,
   CursorText,
   Sparkle,
+  SlidersHorizontal,
   DotsThree,
 } from '@phosphor-icons/react'
 
@@ -19,13 +20,15 @@ interface BreadcrumbBarProps {
   onToggleDiff: () => void
   showAIChat?: boolean
   onToggleAIChat?: () => void
+  inspectorCollapsed?: boolean
+  onToggleInspector?: () => void
 }
 
 const DISABLED_ICON_STYLE = { opacity: 0.4, cursor: 'not-allowed' } as const
 
 export const BreadcrumbBar = memo(function BreadcrumbBar({
   entry, wordCount, isModified, showDiffToggle, diffMode, diffLoading,
-  onToggleDiff, showAIChat, onToggleAIChat,
+  onToggleDiff, showAIChat, onToggleAIChat, inspectorCollapsed, onToggleInspector,
 }: BreadcrumbBarProps) {
   return (
     <div
@@ -101,6 +104,15 @@ export const BreadcrumbBar = memo(function BreadcrumbBar({
         >
           <Sparkle size={16} weight={showAIChat ? 'fill' : 'regular'} />
         </button>
+        {inspectorCollapsed && (
+          <button
+            className="flex items-center justify-center border-none bg-transparent p-0 text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+            onClick={onToggleInspector}
+            title="Open Properties"
+          >
+            <SlidersHorizontal size={16} />
+          </button>
+        )}
         <button
           className="flex items-center justify-center border-none bg-transparent p-0 text-muted-foreground"
           style={DISABLED_ICON_STYLE}

@@ -349,6 +349,8 @@ export const Editor = memo(function Editor({
       onToggleDiff={handleToggleDiff}
       showAIChat={showAIChat}
       onToggleAIChat={onToggleAIChat}
+      inspectorCollapsed={inspectorCollapsed}
+      onToggleInspector={onToggleInspector}
     />
   ) : null
 
@@ -364,10 +366,10 @@ export const Editor = memo(function Editor({
         onClose={() => onToggleAIChat?.()}
       />
     </div>
-  ) : (
+  ) : inspectorCollapsed ? null : (
     <div
       className="shrink-0 flex flex-col min-h-0"
-      style={{ width: inspectorCollapsed ? 40 : inspectorWidth, height: '100%' }}
+      style={{ width: inspectorWidth, height: '100%' }}
     >
       <Inspector
         collapsed={inspectorCollapsed}
