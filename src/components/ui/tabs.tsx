@@ -86,4 +86,5 @@ function TabsContent({
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- shadcn/ui pattern
 export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }

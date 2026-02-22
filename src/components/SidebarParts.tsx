@@ -12,6 +12,7 @@ export interface SectionGroup {
   customColor?: string | null
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- utility co-located with component
 export function isSelectionActive(current: SidebarSelection, check: SidebarSelection): boolean {
   if (current.kind !== check.kind) return false
   switch (check.kind) {

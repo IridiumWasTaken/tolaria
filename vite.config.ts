@@ -226,7 +226,7 @@ function vaultApiPlugin(): Plugin {
 
 // --- AI Chat proxy helpers ---
 
-function readRequestBody(req: any): Promise<string> {
+function readRequestBody(req: import('http').IncomingMessage): Promise<string> {
   return new Promise((resolve) => {
     let body = ''
     req.on('data', (chunk: Buffer) => { body += chunk.toString() })
@@ -235,7 +235,7 @@ function readRequestBody(req: any): Promise<string> {
 }
 
 async function forwardToAnthropic(params: {
-  apiKey: string; model?: string; messages: any[]; system?: string; maxTokens?: number
+  apiKey: string; model?: string; messages: { role: string; content: string }[]; system?: string; maxTokens?: number
 }): Promise<Response> {
   return fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -254,7 +254,7 @@ async function forwardToAnthropic(params: {
   })
 }
 
-async function streamResponseBody(source: ReadableStream<Uint8Array>, res: any): Promise<void> {
+async function streamResponseBody(source: ReadableStream<Uint8Array>, res: import('http').ServerResponse): Promise<void> {
   const reader = source.getReader()
   const decoder = new TextDecoder()
   let done = false
@@ -300,10 +300,10 @@ function aiChatProxyPlugin(): Plugin {
           } else {
             res.end()
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           res.statusCode = 500
           res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ error: err.message || 'Internal server error' }))
+          res.end(JSON.stringify({ error: err instanceof Error ? err.message : 'Internal server error' }))
         }
       })
     },

@@ -4,13 +4,13 @@ import { describe, it, expect, vi } from 'vitest'
 // Hoisted mock editor — available before vi.mock factory runs.
 // Tests can reconfigure spies (e.g. mockTryParse.mockResolvedValue) before rendering.
 const mockEditor = vi.hoisted(() => ({
-  tryParseMarkdownToBlocks: vi.fn(async () => [] as any[]),
+  tryParseMarkdownToBlocks: vi.fn(async () => [] as unknown[]),
   replaceBlocks: vi.fn(),
   insertBlocks: vi.fn(),
   document: [{ id: '1', type: 'paragraph', content: [], props: {}, children: [] }],
   insertInlineContent: vi.fn(),
   onMount: vi.fn((cb: () => void) => { cb(); return () => {} }),
-  prosemirrorView: {} as any,
+  prosemirrorView: {} as Record<string, unknown>,
   blocksToHTMLLossy: vi.fn(() => ''),
   _tiptapEditor: { commands: { setContent: vi.fn() } },
 }))
@@ -33,7 +33,7 @@ vi.mock('@blocknote/react', () => ({
 }))
 
 vi.mock('@blocknote/mantine', () => ({
-  BlockNoteView: ({ children }: any) => <div data-testid="blocknote-view">{children}</div>,
+  BlockNoteView: ({ children }: { children?: React.ReactNode }) => <div data-testid="blocknote-view">{children}</div>,
 }))
 
 vi.mock('@blocknote/mantine/style.css', () => ({}))

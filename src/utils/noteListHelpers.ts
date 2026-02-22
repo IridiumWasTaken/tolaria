@@ -1,4 +1,4 @@
-import type { VaultEntry, SidebarSelection, ModifiedFile } from '../types'
+import type { VaultEntry, SidebarSelection } from '../types'
 
 export interface RelationshipGroup {
   label: string
@@ -196,6 +196,6 @@ function filterByFilterType(entries: VaultEntry[], filter: string): VaultEntry[]
   return []
 }
 
-export function filterEntries(entries: VaultEntry[], selection: SidebarSelection, _modifiedFiles?: ModifiedFile[]): VaultEntry[] {
+export function filterEntries(entries: VaultEntry[], selection: SidebarSelection): VaultEntry[] {
   return filterByKind(entries, selection)
 }

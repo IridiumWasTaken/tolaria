@@ -40,7 +40,7 @@ export function parseFrontmatter(content: string | null): ParsedFrontmatter {
   let inList = false
 
   for (const line of match[1].split('\n')) {
-    const listMatch = line.match(/^  - (.*)$/)
+    const listMatch = line.match(/^ {2}- (.*)$/)
     if (listMatch && currentKey) {
       inList = true
       currentList.push(unquote(listMatch[1]))

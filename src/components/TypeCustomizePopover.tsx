@@ -11,6 +11,7 @@ import { ACCENT_COLORS } from '../utils/typeColors'
 import { cn } from '@/lib/utils'
 
 /** Curated Phosphor icons (normal weight) for type customization */
+// eslint-disable-next-line react-refresh/only-export-components -- constant co-located with component
 export const ICON_OPTIONS: { name: string; Icon: ComponentType<IconProps> }[] = [
   { name: 'file-text', Icon: FileText },
   { name: 'wrench', Icon: Wrench },
@@ -54,6 +55,7 @@ const ICON_MAP: Record<string, ComponentType<IconProps>> = Object.fromEntries(
 )
 
 /** Resolves a Phosphor icon name to its component, with fallback to FileText */
+// eslint-disable-next-line react-refresh/only-export-components -- utility co-located with component
 export function resolveIcon(name: string | null): ComponentType<IconProps> {
   return (name && ICON_MAP[name]) || FileText
 }

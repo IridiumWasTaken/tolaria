@@ -126,7 +126,7 @@ const schema = BlockNoteSchema.create({
 /** Single BlockNote editor view — content is swapped via replaceBlocks */
 function SingleEditorView({ editor, entries, onNavigateWikilink }: { editor: ReturnType<typeof useCreateBlockNote>; entries: VaultEntry[]; onNavigateWikilink: (target: string) => void }) {
   const navigateRef = useRef(onNavigateWikilink)
-  navigateRef.current = onNavigateWikilink
+  useEffect(() => { navigateRef.current = onNavigateWikilink }, [onNavigateWikilink])
   const { cssVars } = useEditorTheme()
 
   // Keep module-level ref in sync so WikiLink renderer can access vault entries
@@ -238,6 +238,7 @@ export const Editor = memo(function Editor({
     },
   })
   // Cache parsed blocks per tab path for instant switching
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- BlockNote block arrays
   const tabCacheRef = useRef<Map<string, any[]>>(new Map())
   const prevActivePathRef = useRef<string | null>(null)
   const editorMountedRef = useRef(false)
@@ -281,6 +282,7 @@ export const Editor = memo(function Editor({
     const tab = tabs.find(t => t.entry.path === activeTabPath)
     if (!tab) return
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- BlockNote's PartialBlock generic is extremely complex
     const applyBlocks = (blocks: any[]) => {
       try {
         const current = editor.document
@@ -317,6 +319,7 @@ export const Editor = memo(function Editor({
 
       try {
         const result = editor.tryParseMarkdownToBlocks(preprocessed)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- BlockNote block arrays
         const handleBlocks = (blocks: any[]) => {
           if (prevActivePathRef.current !== targetPath) return
           const withWikilinks = injectWikilinks(blocks)
@@ -326,13 +329,15 @@ export const Editor = memo(function Editor({
           }
           applyBlocks(withWikilinks)
         }
+        /* eslint-disable @typescript-eslint/no-explicit-any -- tryParseMarkdownToBlocks returns sync or async BlockNote blocks */
         if (result && typeof (result as any).then === 'function') {
-          (result as unknown as Promise<any[]>).then(handleBlocks).catch((err) => {
+          (result as unknown as Promise<any[]>).then(handleBlocks).catch((err: unknown) => {
             console.error('Async markdown parse failed:', err)
           })
         } else {
           handleBlocks(result as any[])
         }
+        /* eslint-enable @typescript-eslint/no-explicit-any */
       } catch (err) {
         console.error('Failed to parse/swap editor content:', err)
       }

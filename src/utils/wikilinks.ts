@@ -8,21 +8,36 @@ export function preProcessWikilinks(md: string): string {
   return md.replace(/\[\[([^\]]+)\]\]/g, (_m, target) => `${WL_START}${target}${WL_END}`)
 }
 
+// Minimal shape of a BlockNote block for wikilink processing
+interface BlockLike {
+  content?: InlineItem[]
+  children?: BlockLike[]
+  [key: string]: unknown
+}
+
+interface InlineItem {
+  type: string
+  text?: string
+  props?: Record<string, string>
+  content?: unknown
+  [key: string]: unknown
+}
+
 /** Walk blocks and replace placeholder text with wikilink inline content */
-export function injectWikilinks(blocks: any[]): any[] {
-  return blocks.map(block => {
+export function injectWikilinks(blocks: unknown[]): unknown[] {
+  return (blocks as BlockLike[]).map(block => {
     if (block.content && Array.isArray(block.content)) {
       block.content = expandWikilinksInContent(block.content)
     }
     if (block.children && Array.isArray(block.children)) {
-      block.children = injectWikilinks(block.children)
+      block.children = injectWikilinks(block.children) as BlockLike[]
     }
     return block
   })
 }
 
-function expandWikilinksInContent(content: any[]): any[] {
-  const result: any[] = []
+function expandWikilinksInContent(content: InlineItem[]): InlineItem[] {
+  const result: InlineItem[] = []
   for (const item of content) {
     if (item.type !== 'text' || typeof item.text !== 'string' || !item.text.includes(WL_START)) {
       result.push(item)
@@ -62,7 +77,7 @@ export function splitFrontmatter(content: string): [string, string] {
 
 export function countWords(content: string): number {
   const [, body] = splitFrontmatter(content)
-  const text = body.replace(/[#*_\[\]`>~\-|]/g, '').trim()
+  const text = body.replace(/[#*_[\]`>~\-|]/g, '').trim()
   if (!text) return 0
   return text.split(/\s+/).filter(Boolean).length
 }

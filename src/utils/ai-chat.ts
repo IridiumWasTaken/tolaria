@@ -25,7 +25,7 @@ export function estimateTokens(text: string | number): number {
 
 const DEFAULT_CONTEXT_LIMIT = 180_000
 
-export function getContextLimit(_model: string): number {
+export function getContextLimit(): number {
   return DEFAULT_CONTEXT_LIMIT
 }
 
@@ -35,13 +35,12 @@ export function getContextLimit(_model: string): number {
 export function buildSystemPrompt(
   notes: VaultEntry[],
   allContent: Record<string, string>,
-  model: string,
 ): { prompt: string; totalTokens: number; truncated: boolean } {
   if (notes.length === 0) {
     return { prompt: '', totalTokens: 0, truncated: false }
   }
 
-  const contextBudget = Math.floor(getContextLimit(model) * 0.6)
+  const contextBudget = Math.floor(getContextLimit() * 0.6)
   const preamble = [
     'You are a helpful AI assistant integrated into Laputa, a personal knowledge management app.',
     'The user has selected the following notes as context. Use them to answer questions accurately.',
@@ -177,8 +176,8 @@ export async function streamChat(
 
     await readSseStream(reader, onChunk)
     onDone()
-  } catch (err: any) {
-    onError(err.message || 'Network error')
+  } catch (err: unknown) {
+    onError(err instanceof Error ? err.message : 'Network error')
   }
 }
 

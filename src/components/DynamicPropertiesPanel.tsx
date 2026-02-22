@@ -30,6 +30,7 @@ export const RELATIONSHIP_KEYS = new Set([
 // Keys to skip showing in Properties
 const SKIP_KEYS = new Set(['aliases', 'notion_id', 'workspace'])
 
+// eslint-disable-next-line react-refresh/only-export-components -- utility co-located with component
 export function containsWikilinks(value: FrontmatterValue): boolean {
   if (typeof value === 'string') return /^\[\[.*\]\]$/.test(value)
   if (Array.isArray(value)) return value.some(v => typeof v === 'string' && /^\[\[.*\]\]$/.test(v))

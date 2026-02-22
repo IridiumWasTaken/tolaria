@@ -83,7 +83,7 @@ vi.mock('@blocknote/react', () => ({
 }))
 
 vi.mock('@blocknote/mantine', () => ({
-  BlockNoteView: ({ children }: any) => <div data-testid="blocknote-view">{children}</div>,
+  BlockNoteView: ({ children }: { children?: React.ReactNode }) => <div data-testid="blocknote-view">{children}</div>,
 }))
 
 vi.mock('@blocknote/mantine/style.css', () => ({}))
