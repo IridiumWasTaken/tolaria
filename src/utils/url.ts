@@ -1,3 +1,5 @@
+import { isTauri } from '../mock-tauri'
+
 const URL_PATTERN = /^https?:\/\//i
 const BARE_DOMAIN_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z]{2,})+([/?#]|$)/i
 
@@ -9,4 +11,14 @@ export function isUrlValue(value: string): boolean {
 export function normalizeUrl(url: string): string {
   if (URL_PATTERN.test(url)) return url
   return `https://${url}`
+}
+
+/** Open a URL in the system browser. Uses Tauri opener plugin in native mode, window.open in browser. */
+export async function openExternalUrl(url: string): Promise<void> {
+  if (isTauri()) {
+    const { openUrl } = await import('@tauri-apps/plugin-opener')
+    await openUrl(url)
+  } else {
+    window.open(url, '_blank')
+  }
 }

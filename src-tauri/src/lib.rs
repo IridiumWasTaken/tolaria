@@ -175,6 +175,7 @@ pub fn run() {
                 app.handle()
                     .plugin(tauri_plugin_updater::Builder::new().build())?;
                 app.handle().plugin(tauri_plugin_process::init())?;
+                app.handle().plugin(tauri_plugin_opener::init())?;
                 menu::setup_menu(app)?;
             }
 

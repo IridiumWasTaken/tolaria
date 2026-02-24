@@ -3,6 +3,13 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { EditableValue, TagPillList, UrlValue } from './EditableValue'
 import { isUrlValue, normalizeUrl } from '../utils/url'
 
+vi.mock('../utils/url', async () => {
+  const actual = await vi.importActual('../utils/url')
+  return { ...actual, openExternalUrl: vi.fn().mockResolvedValue(undefined) }
+})
+
+const { openExternalUrl } = await import('../utils/url') as typeof import('../utils/url') & { openExternalUrl: ReturnType<typeof vi.fn> }
+
 describe('EditableValue', () => {
   const onSave = vi.fn()
   const onCancel = vi.fn()
@@ -219,28 +226,28 @@ describe('UrlValue', () => {
     expect(screen.getByTestId('url-link')).toHaveTextContent('https://example.com')
   })
 
-  it('opens URL in new tab on click', () => {
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+  it('opens URL via openExternalUrl on click', () => {
     render(<UrlValue value="https://example.com" onSave={onSave} onCancel={onCancel} isEditing={false} onStartEdit={onStartEdit} />)
     fireEvent.click(screen.getByTestId('url-link'))
-    expect(openSpy).toHaveBeenCalledWith('https://example.com', '_blank')
-    openSpy.mockRestore()
+    expect(openExternalUrl).toHaveBeenCalledWith('https://example.com')
   })
 
   it('normalizes bare domain before opening', () => {
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
     render(<UrlValue value="example.com" onSave={onSave} onCancel={onCancel} isEditing={false} onStartEdit={onStartEdit} />)
     fireEvent.click(screen.getByTestId('url-link'))
-    expect(openSpy).toHaveBeenCalledWith('https://example.com', '_blank')
-    openSpy.mockRestore()
+    expect(openExternalUrl).toHaveBeenCalledWith('https://example.com')
   })
 
   it('does not open malformed URL', () => {
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
     render(<UrlValue value="://broken" onSave={onSave} onCancel={onCancel} isEditing={false} onStartEdit={onStartEdit} />)
     fireEvent.click(screen.getByTestId('url-link'))
-    expect(openSpy).not.toHaveBeenCalled()
-    openSpy.mockRestore()
+    expect(openExternalUrl).not.toHaveBeenCalled()
+  })
+
+  it('does not trigger edit mode when URL link is clicked', () => {
+    render(<UrlValue value="https://example.com" onSave={onSave} onCancel={onCancel} isEditing={false} onStartEdit={onStartEdit} />)
+    fireEvent.click(screen.getByTestId('url-link'))
+    expect(onStartEdit).not.toHaveBeenCalled()
   })
 
   it('shows edit button that calls onStartEdit', () => {

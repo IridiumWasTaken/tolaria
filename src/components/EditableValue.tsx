@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react'
-import { normalizeUrl } from '../utils/url'
+import { useState, useCallback, useRef } from 'react'
+import { normalizeUrl, openExternalUrl } from '../utils/url'
 
 export function UrlValue({
   value,
@@ -15,6 +15,7 @@ export function UrlValue({
   onStartEdit: () => void
 }) {
   const [editValue, setEditValue] = useState(value)
+  const openingRef = useRef(false)
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -25,15 +26,27 @@ export function UrlValue({
     }
   }
 
-  const handleOpen = useCallback(() => {
+  const handleOpen = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (openingRef.current) return
+    openingRef.current = true
     const normalized = normalizeUrl(value)
     try {
       new URL(normalized)
-      window.open(normalized, '_blank')
+      openExternalUrl(normalized).catch(() => {
+        // opener failed — ignore silently
+      })
     } catch {
       // malformed URL — do nothing
+    } finally {
+      setTimeout(() => { openingRef.current = false }, 500)
     }
   }, [value])
+
+  const handleEditClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    onStartEdit()
+  }, [onStartEdit])
 
   if (isEditing) {
     return (
@@ -61,7 +74,7 @@ export function UrlValue({
       </span>
       <button
         className="shrink-0 border-none bg-transparent p-0 text-[12px] leading-none text-muted-foreground opacity-0 transition-all hover:text-foreground group-hover/url:opacity-100"
-        onClick={onStartEdit}
+        onClick={handleEditClick}
         title="Edit URL"
         data-testid="url-edit-btn"
       >
