@@ -22,7 +22,7 @@ const makeEntry = (overrides: Partial<VaultEntry> = {}): VaultEntry => ({
   icon: null,
   color: null,
   order: null, sidebarLabel: null,
-  template: null, sort: null, view: null, visible: null,
+  template: null, defaultFrontmatter: {}, sort: null, view: null, visible: null,
   outgoingLinks: [],
   properties: {},
   ...overrides,
@@ -181,6 +181,44 @@ describe('useEntryActions', () => {
       expect(createTypeEntry).toHaveBeenCalledWith('NonExistent')
       expect(handleUpdateFrontmatter).toHaveBeenCalledWith('/vault/nonexistent.md', 'template', '## Template')
       expect(updateEntry).toHaveBeenCalledWith('/vault/nonexistent.md', { template: '## Template' })
+    })
+  })
+
+  describe('handleUpdateTypeDefaultFrontmatter', () => {
+    it('writes _default_frontmatter and updates parsed defaults in memory', async () => {
+      const typeEntry = makeEntry({ isA: 'Type', title: 'Project', path: '/vault/project.md' })
+      const { result } = setup([typeEntry])
+
+      await act(async () => {
+        await result.current.handleUpdateTypeDefaultFrontmatter('Project', {
+          status: { type: 'status', value: 'Draft' },
+          url: { type: 'url', value: 'https://example.com' },
+          read_at: { type: 'date' },
+        })
+      })
+
+      expect(handleUpdateFrontmatter).toHaveBeenCalledWith('/vault/project.md', '_default_frontmatter', 'status:\n  type: status\n  value: Draft\nurl:\n  type: url\n  value: https://example.com\nread_at:\n  type: date')
+      expect(updateEntry).toHaveBeenCalledWith('/vault/project.md', {
+        defaultFrontmatter: { status: 'Draft', url: 'https://example.com' },
+        defaultFrontmatterTypes: { status: 'status', url: 'url', read_at: 'date' },
+      })
+    })
+
+    it('deletes _default_frontmatter when cleared', async () => {
+      const typeEntry = makeEntry({
+        isA: 'Type',
+        title: 'Project',
+        path: '/vault/project.md',
+        defaultFrontmatter: { status: 'Draft' },
+      })
+      const { result } = setup([typeEntry])
+
+      await act(async () => {
+        await result.current.handleUpdateTypeDefaultFrontmatter('Project', {})
+      })
+
+      expect(handleDeleteProperty).toHaveBeenCalledWith('/vault/project.md', '_default_frontmatter')
+      expect(updateEntry).toHaveBeenCalledWith('/vault/project.md', { defaultFrontmatter: {}, defaultFrontmatterTypes: {} })
     })
   })
 

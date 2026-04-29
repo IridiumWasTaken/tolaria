@@ -15,6 +15,55 @@ interface EntryActionsConfig {
   onBeforeAction?: (path: string) => Promise<void>
 }
 
+type FrontmatterScalar = string | number | boolean | null
+
+type DefaultFrontmatterSchema = Record<string, { type: string; value?: FrontmatterScalar }>
+
+function quoteYamlString(value: string): string {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
+
+function formatYamlScalar(value: FrontmatterScalar): string {
+  if (value === null) return 'null'
+  if (typeof value === 'boolean') return value ? 'true' : 'false'
+  if (typeof value === 'number') return String(value)
+  const needsQuotes = value.length === 0 || /:\s/.test(value) || /(^|\s)#/.test(value)
+  return needsQuotes ? quoteYamlString(value) : value
+}
+
+function splitDefaultFrontmatterSchema(schema: DefaultFrontmatterSchema): {
+  values: Record<string, FrontmatterScalar>
+  types: Record<string, string>
+} {
+  const values: Record<string, FrontmatterScalar> = {}
+  const types: Record<string, string> = {}
+
+  for (const [key, field] of Object.entries(schema)) {
+    const trimmed = key.trim()
+    if (!trimmed || !field?.type) continue
+    types[trimmed] = field.type
+    if (field.value !== undefined) values[trimmed] = field.value
+  }
+
+  return { values, types }
+}
+
+function serializeDefaultFrontmatterSchema(schema: DefaultFrontmatterSchema): string {
+  const lines: string[] = []
+
+  for (const [key, field] of Object.entries(schema)) {
+    const trimmed = key.trim()
+    if (!trimmed || !field?.type) continue
+    lines.push(`${trimmed}:`)
+    lines.push(`  type: ${field.type}`)
+    if (field.value !== undefined) {
+      lines.push(`  value: ${formatYamlScalar(field.value)}`)
+    }
+  }
+
+  return lines.join('\n')
+}
+
 function findTypeEntry(entries: VaultEntry[], typeName: string): VaultEntry | undefined {
   return entries.find((e) => e.isA === 'Type' && e.title === typeName)
 }
@@ -81,6 +130,23 @@ export function useEntryActions({
     updateEntry(typeEntry.path, { template: template || null })
     onFrontmatterPersisted?.()
   }, [entries, handleUpdateFrontmatter, updateEntry, createTypeEntry, onFrontmatterPersisted])
+
+  const handleUpdateTypeDefaultFrontmatter = useCallback(async (typeName: string, schema: DefaultFrontmatterSchema) => {
+    const typeEntry = await findOrCreateType(entries, typeName, createTypeEntry)
+    const serialized = serializeDefaultFrontmatterSchema(schema)
+    const trimmed = serialized.trim()
+    const { values, types } = splitDefaultFrontmatterSchema(schema)
+
+    if (trimmed) {
+      await handleUpdateFrontmatter(typeEntry.path, '_default_frontmatter', trimmed)
+      updateEntry(typeEntry.path, { defaultFrontmatter: values, defaultFrontmatterTypes: types })
+    } else {
+      await handleDeleteProperty(typeEntry.path, '_default_frontmatter')
+      updateEntry(typeEntry.path, { defaultFrontmatter: {}, defaultFrontmatterTypes: {} })
+    }
+
+    onFrontmatterPersisted?.()
+  }, [entries, handleUpdateFrontmatter, handleDeleteProperty, updateEntry, createTypeEntry, onFrontmatterPersisted])
 
   const handleRenameSection = useCallback(async (typeName: string, label: string) => {
     const typeEntry = await findOrCreateType(entries, typeName, createTypeEntry)
@@ -174,5 +240,17 @@ export function useEntryActions({
     onFrontmatterPersisted?.()
   }, [entries, handleUpdateFrontmatter, handleDeleteProperty, updateEntry, createTypeEntry, onFrontmatterPersisted])
 
-  return { handleArchiveNote, handleUnarchiveNote, handleCustomizeType, handleReorderSections, handleUpdateTypeTemplate, handleRenameSection, handleToggleTypeVisibility, handleToggleFavorite, handleToggleOrganized, handleReorderFavorites }
+  return {
+    handleArchiveNote,
+    handleUnarchiveNote,
+    handleCustomizeType,
+    handleReorderSections,
+    handleUpdateTypeTemplate,
+    handleUpdateTypeDefaultFrontmatter,
+    handleRenameSection,
+    handleToggleTypeVisibility,
+    handleToggleFavorite,
+    handleToggleOrganized,
+    handleReorderFavorites,
+  }
 }

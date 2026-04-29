@@ -48,6 +48,14 @@ pub struct VaultEntry {
     /// Markdown template for notes of this Type. When a new note is created
     /// with this type, the template body is pre-filled after the frontmatter.
     pub template: Option<String>,
+    /// Default frontmatter values to pre-populate on new notes of this Type.
+    /// Stored under `_default_frontmatter` / `default_frontmatter` in the type definition.
+    #[serde(rename = "defaultFrontmatter", default)]
+    pub default_frontmatter: HashMap<String, serde_json::Value>,
+    /// Per-property display modes for `_default_frontmatter` fields.
+    /// Keys are frontmatter property names; values are modes like "text", "date", "boolean", etc.
+    #[serde(rename = "defaultFrontmatterTypes", default)]
+    pub default_frontmatter_types: HashMap<String, String>,
     /// Default sort preference for the note list when viewing instances of this Type.
     /// Stored as "option:direction" (e.g. "modified:desc", "title:asc", "property:Priority:asc").
     pub sort: Option<String>,

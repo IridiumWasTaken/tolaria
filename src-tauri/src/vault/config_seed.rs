@@ -22,6 +22,7 @@ A Type defines shared metadata and defaults for a category of notes in this vaul
 - **Order**: Sidebar ordering
 - **Sidebar label**: Override the default plural label
 - **Template**: Default body for new notes of this type
+- **Default frontmatter**: `_default_frontmatter` map for per-type default note properties
 - **View**: Preferred note-list view for this type
 ";
 

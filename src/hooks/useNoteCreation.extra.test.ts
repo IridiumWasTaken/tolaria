@@ -10,6 +10,7 @@ import {
   resolveNewType,
   DEFAULT_TEMPLATES,
   resolveTemplate,
+  resolveTypeDefaultFrontmatter,
 } from './useNoteCreation'
 
 const makeEntry = (overrides: Partial<VaultEntry> = {}): VaultEntry => ({
@@ -223,6 +224,23 @@ describe('buildNoteContent', () => {
     })
     expect(content).toBe('---\ntype: Project\nstatus: Active\n---\n\n# \n\n## Objective\n\n## Notes\n\n')
   })
+
+  it('applies Type default frontmatter fields to new note content', () => {
+    const content = buildNoteContent({
+      title: 'Brief',
+      type: 'Project',
+      status: null,
+      defaultFrontmatter: {
+        values: {
+          status: 'Draft',
+          url: 'https://example.com',
+          created_at: '2026-04-29',
+        },
+        types: {},
+      },
+    })
+    expect(content).toBe('---\ntitle: Brief\ntype: Project\nstatus: Draft\nurl: https://example.com\ncreated_at: 2026-04-29\n---\n')
+  })
 })
 
 describe('resolveTemplate', () => {
@@ -242,6 +260,24 @@ describe('resolveTemplate', () => {
   it('type entry template overrides default', () => {
     const typeEntry = makeEntry({ isA: 'Type', title: 'Project', template: '## Custom\n\n' })
     expect(resolveTemplate({ entries: [typeEntry], typeName: 'Project' })).toBe('## Custom\n\n')
+  })
+})
+
+describe('resolveTypeDefaultFrontmatter', () => {
+  it('reads default frontmatter values from type entry', () => {
+    const typeEntry = makeEntry({
+      isA: 'Type',
+      title: 'Project',
+      defaultFrontmatter: { status: 'Draft', url: 'https://example.com' },
+    })
+
+    expect(resolveTypeDefaultFrontmatter({ entries: [typeEntry], typeName: 'Project' })).toEqual({
+      values: {
+        status: 'Draft',
+        url: 'https://example.com',
+      },
+      types: {},
+    })
   })
 })
 

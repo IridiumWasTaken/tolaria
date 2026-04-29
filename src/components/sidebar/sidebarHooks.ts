@@ -7,15 +7,21 @@ import { buildDynamicSections, sortSections } from '../../utils/sidebarSections'
 
 export type SidebarGroupKey = 'favorites' | 'views' | 'sections' | 'folders'
 
-export function useOutsideClick(ref: RefObject<HTMLElement | null>, isOpen: boolean, onClose: () => void) {
+export function useOutsideClick(
+  ref: RefObject<HTMLElement | null>,
+  isOpen: boolean,
+  onClose: () => void,
+  shouldIgnoreEvent?: (event: MouseEvent) => boolean,
+) {
   useEffect(() => {
     if (!isOpen) return
     const handler = (event: MouseEvent) => {
+      if (shouldIgnoreEvent?.(event)) return
       if (ref.current && !ref.current.contains(event.target as Node)) onClose()
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [ref, isOpen, onClose])
+  }, [ref, isOpen, onClose, shouldIgnoreEvent])
 }
 
 export function useSidebarSections(entries: VaultEntry[]) {

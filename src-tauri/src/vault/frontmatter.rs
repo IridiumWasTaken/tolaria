@@ -36,6 +36,13 @@ pub(crate) struct Frontmatter {
     pub sidebar_label: Option<StringOrList>,
     #[serde(default)]
     pub template: Option<StringOrList>,
+    #[serde(
+        rename = "_default_frontmatter",
+        alias = "default_frontmatter",
+        alias = "default frontmatter",
+        default
+    )]
+    pub default_frontmatter: Option<serde_json::Value>,
     #[serde(rename = "_sort", alias = "sort", default)]
     pub sort: Option<StringOrList>,
     #[serde(default)]
@@ -200,6 +207,9 @@ fn parse_frontmatter(data: &HashMap<String, serde_json::Value>) -> Frontmatter {
         "sidebar_label",
         "sidebar label",
         "template",
+        "_default_frontmatter",
+        "default_frontmatter",
+        "default frontmatter",
         "_sort",
         "sort",
         "view",
@@ -236,6 +246,7 @@ const SKIP_KEYS: &[&str] = &[
     "order",
     "sidebar_label",
     "template",
+    "default_frontmatter",
     "sort",
     "view",
     "visible",
@@ -475,6 +486,92 @@ fn flush_list(
             map.insert(k, serde_json::Value::Array(std::mem::take(items)));
         }
     }
+}
+
+fn is_scalar_json_value(value: &serde_json::Value) -> bool {
+    matches!(
+        value,
+        serde_json::Value::Null
+            | serde_json::Value::Bool(_)
+            | serde_json::Value::Number(_)
+            | serde_json::Value::String(_)
+    )
+}
+
+fn infer_display_mode(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::Bool(_) => "boolean".to_string(),
+        serde_json::Value::Number(_) => "number".to_string(),
+        _ => "text".to_string(),
+    }
+}
+
+fn parse_default_frontmatter_value(
+    value: serde_json::Value,
+) -> (Option<String>, Option<serde_json::Value>) {
+    match value {
+        serde_json::Value::Object(map) => {
+            let field_type = map
+                .get("type")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let default_value = map.get("value").cloned().filter(is_scalar_json_value);
+            (field_type, default_value)
+        }
+        scalar if is_scalar_json_value(&scalar) => {
+            (Some(infer_display_mode(&scalar)), Some(scalar))
+        }
+        _ => (None, None),
+    }
+}
+
+fn parse_default_frontmatter_raw(
+    raw: Option<serde_json::Value>,
+) -> (HashMap<String, String>, HashMap<String, serde_json::Value>) {
+    let parsed = match raw {
+        Some(serde_json::Value::Object(map)) => serde_json::Value::Object(map),
+        Some(serde_json::Value::String(text)) => {
+            let trimmed = text.trim();
+            if trimmed.is_empty() {
+                return (HashMap::new(), HashMap::new());
+            }
+            serde_yaml::from_str::<serde_json::Value>(trimmed).unwrap_or(serde_json::Value::Null)
+        }
+        _ => serde_json::Value::Null,
+    };
+
+    let Some(entries) = parsed.as_object() else {
+        return (HashMap::new(), HashMap::new());
+    };
+
+    let mut types = HashMap::new();
+    let mut defaults = HashMap::new();
+
+    for (key, value) in entries {
+        let (field_type, default_value) = parse_default_frontmatter_value(value.clone());
+        if let Some(field_type) = field_type {
+            types.insert(key.clone(), field_type);
+        }
+        if let Some(default_value) = default_value {
+            defaults.insert(key.clone(), default_value);
+        }
+    }
+
+    (types, defaults)
+}
+
+pub(crate) fn resolve_default_frontmatter(
+    raw: Option<serde_json::Value>,
+) -> HashMap<String, serde_json::Value> {
+    let (_, defaults) = parse_default_frontmatter_raw(raw);
+    defaults
+}
+
+pub(crate) fn resolve_default_frontmatter_types(
+    raw: Option<serde_json::Value>,
+) -> HashMap<String, String> {
+    let (types, _) = parse_default_frontmatter_raw(raw);
+    types
 }
 
 /// Extract frontmatter, relationships, and custom properties from parsed gray_matter data.

@@ -208,6 +208,7 @@ Each entity type can have a corresponding **type document** in the `type/` folde
 | `order` | number | Sidebar display order (lower = higher priority) |
 | `sidebar_label` | string | Custom label overriding auto-pluralization |
 | `template` | string | Markdown template for new notes of this type |
+| `_default_frontmatter` | map | Default frontmatter key/value pairs applied to new notes of this type |
 | `sort` | string | Default sort: "modified:desc", "title:asc", "property:Priority:asc" |
 | `view` | string | Default view mode: "all", "editor-list", "editor-only" |
 | `visible` | bool | Whether type appears in sidebar (default: true) |

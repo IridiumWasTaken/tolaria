@@ -367,6 +367,7 @@ export function CustomizeOverlay({
   innerRef,
   onCustomize,
   onChangeTemplate,
+  onChangeDefaultFrontmatter,
   onClose,
 }: {
   target: string | null
@@ -374,6 +375,7 @@ export function CustomizeOverlay({
   innerRef: Ref<HTMLDivElement>
   onCustomize: (prop: 'icon' | 'color', value: string) => void
   onChangeTemplate: (template: string) => void
+  onChangeDefaultFrontmatter: (schema: Record<string, { type: string; value?: string | number | boolean | null }>) => void
   onClose: () => void
 }) {
   if (!target) return null
@@ -384,9 +386,12 @@ export function CustomizeOverlay({
         currentIcon={typeEntryMap[target]?.icon ?? null}
         currentColor={typeEntryMap[target]?.color ?? null}
         currentTemplate={typeEntryMap[target]?.template ?? null}
+        currentDefaultFrontmatter={typeEntryMap[target]?.defaultFrontmatter ?? null}
+        currentDefaultFrontmatterTypes={typeEntryMap[target]?.defaultFrontmatterTypes ?? null}
         onChangeIcon={(icon) => onCustomize('icon', icon)}
         onChangeColor={(color) => onCustomize('color', color)}
         onChangeTemplate={onChangeTemplate}
+        onChangeDefaultFrontmatter={onChangeDefaultFrontmatter}
         onClose={onClose}
       />
     </div>

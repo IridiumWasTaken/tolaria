@@ -12,6 +12,7 @@ interface SidebarTypeInteractionsInput {
   typeEntryMap: Record<string, VaultEntry>
   onCustomizeType?: (typeName: string, icon: string, color: string) => void
   onUpdateTypeTemplate?: (typeName: string, template: string) => void
+  onUpdateTypeDefaultFrontmatter?: (typeName: string, schema: Record<string, { type: string; value?: string | number | boolean | null }>) => void
   onRenameSection?: (typeName: string, label: string) => void
 }
 
@@ -32,13 +33,27 @@ function useSidebarTypeState() {
     setContextMenuType(null)
   }, [])
 
+  const ignoreSelectPortalClick = useCallback((event: MouseEvent) => {
+    const target = event.target as Element | null
+    return Boolean(
+      target?.closest(
+        [
+          '[data-slot="select-content"]',
+          '[data-slot="popover-content"]',
+          '[data-testid="status-dropdown-popover"]',
+          '[data-testid="status-dropdown-backdrop"]',
+        ].join(', '),
+      ),
+    )
+  }, [])
+
   const closeCustomizeTarget = useCallback(() => setCustomizeTarget(null), [])
   const closeCustomize = useCallback(() => setShowCustomize(false), [])
   const cancelRename = useCallback(() => setRenamingType(null), [])
 
   useOutsideClick(customizeRef, showCustomize, closeCustomize)
   useOutsideClick(contextMenuRef, !!contextMenuPos, closeContextMenu)
-  useOutsideClick(popoverRef, !!customizeTarget, closeCustomizeTarget)
+  useOutsideClick(popoverRef, !!customizeTarget, closeCustomizeTarget, ignoreSelectPortalClick)
 
   return {
     cancelRename,
@@ -99,6 +114,7 @@ export function useSidebarTypeInteractions({
   typeEntryMap,
   onCustomizeType,
   onUpdateTypeTemplate,
+  onUpdateTypeDefaultFrontmatter,
   onRenameSection,
 }: SidebarTypeInteractionsInput) {
   const state = useSidebarTypeState()
@@ -126,6 +142,10 @@ export function useSidebarTypeInteractions({
     if (state.customizeTarget) onUpdateTypeTemplate?.(state.customizeTarget, template)
   }, [onUpdateTypeTemplate, state.customizeTarget])
 
+  const handleChangeDefaultFrontmatter = useCallback((schema: Record<string, { type: string; value?: string | number | boolean | null }>) => {
+    if (state.customizeTarget) onUpdateTypeDefaultFrontmatter?.(state.customizeTarget, schema)
+  }, [onUpdateTypeDefaultFrontmatter, state.customizeTarget])
+
   const openCustomizeTarget = useCallback((type: string) => {
     state.closeContextMenu()
     state.setCustomizeTarget(type)
@@ -139,6 +159,7 @@ export function useSidebarTypeInteractions({
     customizeRef: state.customizeRef,
     customizeTarget: state.customizeTarget,
     handleChangeTemplate,
+    handleChangeDefaultFrontmatter,
     handleContextMenu,
     handleCustomize,
     handleRenameSubmit: renameCallbacks.handleRenameSubmit,

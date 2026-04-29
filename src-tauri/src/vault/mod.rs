@@ -41,7 +41,10 @@ pub use views::{
 };
 
 use file::read_file_metadata;
-use frontmatter::{extract_fm_and_rels, resolve_is_a};
+use frontmatter::{
+    extract_fm_and_rels, resolve_default_frontmatter, resolve_default_frontmatter_types,
+    resolve_is_a,
+};
 use parsing::{count_body_words, extract_outgoing_links, extract_snippet, extract_title};
 
 use gray_matter::engine::YAML;
@@ -126,6 +129,8 @@ pub fn parse_md_file(path: &Path, git_dates: Option<(u64, u64)>) -> Result<Vault
     let belongs_to = preferred_relationship_refs(&relationships, "belongs_to", "Belongs to");
     let related_to = preferred_relationship_refs(&relationships, "related_to", "Related to");
 
+    let default_frontmatter_raw = frontmatter.default_frontmatter.clone();
+
     Ok(VaultEntry {
         path: path.to_string_lossy().to_string(),
         filename,
@@ -149,6 +154,8 @@ pub fn parse_md_file(path: &Path, git_dates: Option<(u64, u64)>) -> Result<Vault
         order: frontmatter.order,
         sidebar_label: frontmatter.sidebar_label.and_then(|v| v.into_scalar()),
         template: frontmatter.template.and_then(|v| v.into_scalar()),
+        default_frontmatter: resolve_default_frontmatter(default_frontmatter_raw.clone()),
+        default_frontmatter_types: resolve_default_frontmatter_types(default_frontmatter_raw),
         sort: frontmatter.sort.and_then(|v| v.into_scalar()),
         view: frontmatter.view.and_then(|v| v.into_scalar()),
         visible: frontmatter.visible,

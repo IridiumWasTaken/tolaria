@@ -34,6 +34,7 @@ interface SidebarProps {
   onCreateNewType?: () => void
   onCustomizeType?: (typeName: string, icon: string, color: string) => void
   onUpdateTypeTemplate?: (typeName: string, template: string) => void
+  onUpdateTypeDefaultFrontmatter?: (typeName: string, schema: Record<string, { type: string; value?: string | number | boolean | null }>) => void
   onReorderSections?: (orderedTypes: { typeName: string; order: number }[]) => void
   onRenameSection?: (typeName: string, label: string) => void
   onToggleTypeVisibility?: (typeName: string) => void
@@ -228,6 +229,7 @@ export const Sidebar = memo(function Sidebar({
   onSelect,
   onCustomizeType,
   onUpdateTypeTemplate,
+  onUpdateTypeDefaultFrontmatter,
   onReorderSections,
   onRenameSection,
   onToggleTypeVisibility,
@@ -260,6 +262,7 @@ export const Sidebar = memo(function Sidebar({
     typeEntryMap,
     onCustomizeType,
     onUpdateTypeTemplate,
+    onUpdateTypeDefaultFrontmatter,
     onRenameSection,
   })
 
@@ -339,6 +342,7 @@ export const Sidebar = memo(function Sidebar({
         innerRef={typeInteractions.popoverRef}
         onCustomize={typeInteractions.handleCustomize}
         onChangeTemplate={typeInteractions.handleChangeTemplate}
+        onChangeDefaultFrontmatter={typeInteractions.handleChangeDefaultFrontmatter}
         onClose={typeInteractions.closeCustomizeTarget}
       />
     </aside>

@@ -12,6 +12,7 @@ import {
   resolveNewNote,
   resolveNewType,
   resolveTemplate,
+  resolveTypeDefaultFrontmatter,
   DEFAULT_TEMPLATES,
   RAPID_CREATE_NOTE_SETTLE_MS,
   useNoteCreation,
@@ -147,6 +148,26 @@ describe('buildNoteContent', () => {
     })
     expect(content).toBe('---\ntype: Project\nstatus: Active\n---\n\n# \n\n## Objective\n\n')
   })
+
+  it('applies default frontmatter properties while preserving explicit title/type/status', () => {
+    const content = buildNoteContent({
+      title: 'My Note',
+      type: 'Project',
+      status: 'Active',
+      defaultFrontmatter: {
+        values: {
+          status: 'Planned',
+          url: 'https://example.com',
+          created_at: '2026-04-29',
+          title: 'Ignored',
+          type: 'Ignored',
+        },
+        types: { read_at: 'date' },
+      },
+    })
+
+    expect(content).toBe('---\ntitle: My Note\ntype: Project\nread_at:\nurl: https://example.com\ncreated_at: 2026-04-29\nstatus: Active\n---\n')
+  })
 })
 
 describe('resolveNewNote', () => {
@@ -203,6 +224,29 @@ describe('resolveTemplate', () => {
 
   it('returns null when no template and no default', () => {
     expect(resolveTemplate({ entries: [], typeName: 'CustomType' })).toBeNull()
+  })
+})
+
+describe('resolveTypeDefaultFrontmatter', () => {
+  it('returns type default frontmatter when present', () => {
+    const typeEntry = makeEntry({
+      isA: 'Type',
+      title: 'Project',
+      defaultFrontmatter: { status: 'Draft', url: 'https://example.com', created_at: '2026-04-29' },
+    })
+
+    expect(resolveTypeDefaultFrontmatter({ entries: [typeEntry], typeName: 'Project' })).toEqual({
+      values: {
+        status: 'Draft',
+        url: 'https://example.com',
+        created_at: '2026-04-29',
+      },
+      types: {},
+    })
+  })
+
+  it('returns empty defaults when the type definition has none', () => {
+    expect(resolveTypeDefaultFrontmatter({ entries: [], typeName: 'Project' })).toEqual({ values: {}, types: {} })
   })
 })
 

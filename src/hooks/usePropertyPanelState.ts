@@ -52,15 +52,18 @@ function deriveTypeInfo(entries: VaultEntry[] | undefined, entryIsA: string | nu
   const typeEntries = (entries ?? []).filter(e => e.isA === 'Type')
   const typeColorKeys: Record<string, string | null> = {}
   const typeIconKeys: Record<string, string | null> = {}
+  const typePropertyModeByType: Record<string, Record<string, string>> = {}
   for (const e of typeEntries) {
     typeColorKeys[e.title] = e.color ?? null
     typeIconKeys[e.title] = e.icon ?? null
+    typePropertyModeByType[e.title] = e.defaultFrontmatterTypes ?? {}
   }
   return {
     availableTypes: typeEntries.map(e => e.title).sort((a, b) => a.localeCompare(b)),
     customColorKey: entryIsA ? (typeColorKeys[entryIsA] ?? null) : null,
     typeColorKeys,
     typeIconKeys,
+    typePropertyModes: entryIsA ? (typePropertyModeByType[entryIsA] ?? {}) : {},
   }
 }
 
@@ -193,7 +196,7 @@ export function usePropertyPanelState(deps: PropertyPanelDeps) {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [displayOverrides, setDisplayOverrides] = useState(() => loadDisplayModeOverrides())
 
-  const { availableTypes, customColorKey, typeColorKeys, typeIconKeys } = useMemo(() => deriveTypeInfo(entries, entryIsA), [entries, entryIsA])
+  const { availableTypes, customColorKey, typeColorKeys, typeIconKeys, typePropertyModes } = useMemo(() => deriveTypeInfo(entries, entryIsA), [entries, entryIsA])
   const vaultStatuses = useMemo(() => collectVaultStatuses(entries), [entries])
   const vaultTagsByKey = useMemo(() => collectAllVaultTags(entries), [entries])
   const propertyEntries = useMemo(() => buildVisiblePropertyEntries(frontmatter), [frontmatter])
@@ -226,7 +229,7 @@ export function usePropertyPanelState(deps: PropertyPanelDeps) {
 
   return {
     editingKey, setEditingKey, showAddDialog, setShowAddDialog, displayOverrides,
-    availableTypes, customColorKey, typeColorKeys, typeIconKeys, vaultStatuses, vaultTagsByKey, propertyEntries,
+    availableTypes, customColorKey, typeColorKeys, typeIconKeys, typePropertyModes, vaultStatuses, vaultTagsByKey, propertyEntries,
     handleSaveValue, handleSaveList, handleAdd, handleDisplayModeChange,
   }
 }

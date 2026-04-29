@@ -32,6 +32,10 @@ export interface VaultEntry {
   sidebarLabel: string | null
   /** Markdown template for Type entries. Pre-fills new notes created with this type. */
   template: string | null
+  /** Default frontmatter values for new notes of this Type. */
+  defaultFrontmatter?: Record<string, string | number | boolean | null>
+  /** Per-property type hints for Type default frontmatter fields. */
+  defaultFrontmatterTypes?: Record<string, string>
   /** Default sort preference for the note list of this Type. Format: "option:direction". */
   sort: string | null
   /** Default view mode for the note list of this Type: "all", "editor-list", or "editor-only". */

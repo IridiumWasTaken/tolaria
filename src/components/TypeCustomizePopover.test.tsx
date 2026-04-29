@@ -44,6 +44,7 @@ describe('TypeCustomizePopover', () => {
   const onChangeIcon = vi.fn()
   const onChangeColor = vi.fn()
   const onChangeTemplate = vi.fn()
+  const onChangeDefaultFrontmatter = vi.fn()
   const onClose = vi.fn()
 
   const renderPopover = (overrides: Partial<Parameters<typeof TypeCustomizePopover>[0]> = {}) =>
@@ -52,9 +53,12 @@ describe('TypeCustomizePopover', () => {
         currentIcon={null}
         currentColor={null}
         currentTemplate={null}
+        currentDefaultFrontmatter={null}
+        currentDefaultFrontmatterTypes={null}
         onChangeIcon={onChangeIcon}
         onChangeColor={onChangeColor}
         onChangeTemplate={onChangeTemplate}
+        onChangeDefaultFrontmatter={onChangeDefaultFrontmatter}
         onClose={onClose}
         {...overrides}
       />
@@ -69,6 +73,7 @@ describe('TypeCustomizePopover', () => {
     expect(screen.getByText('Color')).toBeInTheDocument()
     expect(screen.getByText('Icon')).toBeInTheDocument()
     expect(screen.getByText('Template')).toBeInTheDocument()
+    expect(screen.getByText('Default Frontmatter')).toBeInTheDocument()
     expect(screen.getByText('Done')).toBeInTheDocument()
   })
 
@@ -179,5 +184,102 @@ describe('TypeCustomizePopover', () => {
     renderPopover({ currentTemplate: null })
     const textarea = screen.getByTestId('template-textarea') as HTMLTextAreaElement
     expect(textarea.value).toBe('')
+  })
+
+  it('renders default frontmatter row editor', () => {
+    renderPopover()
+    expect(screen.getByTestId('default-frontmatter-rows')).toBeInTheDocument()
+    expect(screen.getByTestId('default-frontmatter-add')).toBeInTheDocument()
+  })
+
+  it('shows the shared add-property form inside the aligned frontmatter grid', () => {
+    renderPopover()
+    fireEvent.click(screen.getByTestId('default-frontmatter-add'))
+
+    expect(screen.getByTestId('add-property-form')).toBeInTheDocument()
+    expect(screen.getByTestId('add-property-key-input')).toBeInTheDocument()
+    expect(screen.getByTestId('add-property-type-trigger')).toBeInTheDocument()
+  })
+
+  it('does not persist when adding an empty default-frontmatter row', async () => {
+    vi.useFakeTimers()
+    try {
+      renderPopover()
+      fireEvent.click(screen.getByTestId('default-frontmatter-add'))
+
+      await act(async () => {
+        vi.advanceTimersByTime(600)
+      })
+
+      expect(onChangeDefaultFrontmatter).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('pre-fills default frontmatter rows from type values and types', () => {
+    renderPopover({
+      currentDefaultFrontmatter: { read_at: null, priority: 1 },
+      currentDefaultFrontmatterTypes: { read_at: 'date', priority: 'number' },
+    })
+
+    const keys = screen.getAllByTestId('default-frontmatter-key-label')
+    const values = screen.getAllByTestId('default-frontmatter-value-preview')
+
+    expect(keys.some((node) => node.textContent?.toLowerCase().includes('read at'))).toBe(true)
+    expect(values.some((node) => node.textContent === '\u2014')).toBe(true)
+  })
+
+  it('calls onChangeDefaultFrontmatter only when Done is clicked', () => {
+    renderPopover()
+    fireEvent.click(screen.getByTestId('default-frontmatter-add'))
+    const keyInput = screen.getByTestId('add-property-key-input')
+    const typeSelect = screen.getByTestId('add-property-type-trigger')
+
+    fireEvent.change(keyInput, { target: { value: 'read_at' } })
+    fireEvent.click(typeSelect)
+    fireEvent.click(screen.getByText('Date'))
+    fireEvent.click(screen.getByTestId('add-property-confirm'))
+
+    expect(onChangeDefaultFrontmatter).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByText('Done'))
+
+    expect(onChangeDefaultFrontmatter).toHaveBeenCalledWith({
+      read_at: { type: 'date' },
+    })
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('keeps add-definition form open with a fresh row after confirming a property', () => {
+    renderPopover()
+    fireEvent.click(screen.getByTestId('default-frontmatter-add'))
+
+    fireEvent.change(screen.getByTestId('add-property-key-input'), { target: { value: 'read_at' } })
+    fireEvent.click(screen.getByTestId('add-property-confirm'))
+
+    expect(screen.getByTestId('add-property-form')).toBeInTheDocument()
+    const keyInput = screen.getByTestId('add-property-key-input') as HTMLInputElement
+    expect(keyInput.value).toBe('')
+    expect(screen.getAllByTestId('default-frontmatter-key-label').some((node) => node.textContent?.toLowerCase().includes('read at'))).toBe(true)
+  })
+
+  it('removes a created frontmatter property from the row list', () => {
+    renderPopover({
+      currentDefaultFrontmatter: { read_at: null },
+      currentDefaultFrontmatterTypes: { read_at: 'date' },
+    })
+
+    fireEvent.click(screen.getByTestId('default-frontmatter-remove'))
+    expect(screen.queryByText('Read at')).not.toBeInTheDocument()
+  })
+
+  it('formats date previews like property values in the note pane', () => {
+    renderPopover({
+      currentDefaultFrontmatter: { read_at: '2026-04-29' },
+      currentDefaultFrontmatterTypes: { read_at: 'date' },
+    })
+
+    expect(screen.getByText('Apr 29, 2026')).toBeInTheDocument()
   })
 })

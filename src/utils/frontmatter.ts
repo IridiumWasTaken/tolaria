@@ -21,7 +21,7 @@ function collapseList(items: FrontmatterText[]): FrontmatterValue {
 }
 
 function isBlockScalar(value: FrontmatterText): boolean {
-  return value === '' || value === '|' || value === '>'
+  return value === '|' || value === '>'
 }
 
 function isInlineArrayLiteral(value: FrontmatterText): boolean {
@@ -87,6 +87,7 @@ function parseKeyValueLine(line: FrontmatterLine): { key: FrontmatterKey, value:
 }
 
 function parseFrontmatterValue(value: FrontmatterText): FrontmatterValue | undefined {
+  if (value === '') return null
   if (isBlockScalar(value)) return undefined
   if (isInlineArrayLiteral(value)) return parseInlineArray(value)
   return parseScalar(value)

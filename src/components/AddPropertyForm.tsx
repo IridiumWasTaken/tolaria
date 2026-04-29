@@ -6,6 +6,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CalendarIcon, Check, X } from 'lucide-react'
 import {
+  PROPERTY_PANEL_GRID_STYLE,
+  PROPERTY_PANEL_ROW_STYLE,
+} from './propertyPanelLayout'
+import {
   type PropertyDisplayMode,
   formatDateValue,
   toISODate,
@@ -35,8 +39,19 @@ function isValidNumberValue(value: string): boolean {
   return Number.isFinite(Number(trimmed))
 }
 
-function canSubmitProperty({ key, value, displayMode }: { key: string; value: string; displayMode: PropertyDisplayMode }): boolean {
+function canSubmitProperty({
+  key,
+  value,
+  displayMode,
+  allowEmptyValue,
+}: {
+  key: string
+  value: string
+  displayMode: PropertyDisplayMode
+  allowEmptyValue: boolean
+}): boolean {
   if (!key.trim()) return false
+  if (allowEmptyValue && value.trim() === '') return true
   return displayMode !== 'number' || isValidNumberValue(value)
 }
 
@@ -147,15 +162,26 @@ function AddPropertyValueInput({ displayMode, value, onChange, onKeyDown, vaultS
   }
 }
 
-export function AddPropertyForm({ onAdd, onCancel, vaultStatuses, locale = 'en' }: {
+export function AddPropertyForm({
+  onAdd, onCancel, vaultStatuses, locale = 'en',
+  allowEmptyValue = false, alignWithPropertyGrid = false, renderAsRow = false,
+  initialKey = '', initialValue = '', initialMode = 'text',
+}: {
   onAdd: (key: string, value: string, displayMode: PropertyDisplayMode) => void; onCancel: () => void
   vaultStatuses: string[]
   locale?: AppLocale
+  allowEmptyValue?: boolean
+  alignWithPropertyGrid?: boolean
+  /** Render just the inner row div without an outer grid wrapper — for use inside an existing grid */
+  renderAsRow?: boolean
+  initialKey?: string
+  initialValue?: string
+  initialMode?: PropertyDisplayMode
 }) {
-  const [newKey, setNewKey] = useState('')
-  const [newValue, setNewValue] = useState('')
-  const [displayMode, setDisplayMode] = useState<PropertyDisplayMode>('text')
-  const canSubmit = canSubmitProperty({ key: newKey, value: newValue, displayMode })
+  const [newKey, setNewKey] = useState(initialKey)
+  const [newValue, setNewValue] = useState(initialMode === 'boolean' && !initialValue ? 'false' : initialValue)
+  const [displayMode, setDisplayMode] = useState<PropertyDisplayMode>(initialMode)
+  const canSubmit = canSubmitProperty({ key: newKey, value: newValue, displayMode, allowEmptyValue })
 
   const handleModeChange = (mode: PropertyDisplayMode) => {
     setDisplayMode(mode)
@@ -168,45 +194,68 @@ export function AddPropertyForm({ onAdd, onCancel, vaultStatuses, locale = 'en' 
     else if (e.key === 'Escape') onCancel()
   }
 
-  return (
-    <div className="mt-1 flex flex-wrap items-center gap-1.5 rounded px-1.5 py-1" data-testid="add-property-form">
-      <Input
-        className="h-[26px] w-20 shrink-0 rounded border border-border bg-muted px-1.5 text-[12px] text-foreground outline-none focus:border-primary"
-        type="text" placeholder={translate(locale, 'inspector.properties.propertyName')} value={newKey}
-        onChange={(e) => setNewKey(e.target.value)} onKeyDown={handleKeyDown} autoFocus
-      />
-      <Select value={displayMode} onValueChange={(v) => handleModeChange(v as PropertyDisplayMode)}>
-        <SelectTrigger
-          size="sm"
-          className="h-[26px] w-[72px] shrink-0 gap-1 border-border bg-muted px-1.5 py-0 shadow-none"
-          style={{ fontSize: 12, borderRadius: 4 }}
-          data-testid="add-property-type-trigger"
+  const containerClassName = alignWithPropertyGrid
+    ? 'grid min-w-0 gap-x-2 gap-y-1.5'
+    : 'mt-1 flex flex-wrap items-center gap-1.5 rounded px-1.5 py-1'
+
+  const formClassName = (alignWithPropertyGrid || renderAsRow)
+    ? 'group/prop grid min-h-7 min-w-0 grid-cols-2 items-center gap-2 rounded px-1.5 outline-none transition-colors hover:bg-muted'
+    : 'contents'
+
+  const rowContent = (
+    <div className={formClassName} style={(alignWithPropertyGrid || renderAsRow) ? PROPERTY_PANEL_ROW_STYLE : undefined}>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <Input
+          className="h-[26px] w-20 shrink-0 rounded border border-border bg-muted px-1.5 text-[12px] text-foreground outline-none focus:border-primary"
+          type="text" placeholder={translate(locale, 'inspector.properties.propertyName')} value={newKey}
+          onChange={(e) => setNewKey(e.target.value)} onKeyDown={handleKeyDown} autoFocus
+          data-testid="add-property-key-input"
+        />
+        <Select value={displayMode} onValueChange={(v) => handleModeChange(v as PropertyDisplayMode)}>
+          <SelectTrigger
+            size="sm"
+            className="h-[26px] w-[72px] shrink-0 gap-1 border-border bg-muted px-1.5 py-0 shadow-none"
+            style={{ fontSize: 12, borderRadius: 4 }}
+            data-testid="add-property-type-trigger"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper" side="left">
+            {DISPLAY_MODE_OPTIONS.map(opt => {
+              const OptIcon = DISPLAY_MODE_ICONS[opt.value]
+              return (
+                <SelectItem key={opt.value} value={opt.value}>
+                  <OptIcon className="size-3.5 text-muted-foreground" />
+                  {opt.label}
+                </SelectItem>
+              )
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <AddPropertyValueInput displayMode={displayMode} value={newValue} onChange={setNewValue} onKeyDown={handleKeyDown} vaultStatuses={vaultStatuses} locale={locale} />
+        <Button
+          size="icon-xs" onClick={() => onAdd(newKey, newValue, displayMode)}
+          disabled={!canSubmit} title={translate(locale, 'inspector.properties.addProperty')}
+          data-testid="add-property-confirm"
         >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent position="popper" side="left">
-          {DISPLAY_MODE_OPTIONS.map(opt => {
-            const OptIcon = DISPLAY_MODE_ICONS[opt.value]
-            return (
-              <SelectItem key={opt.value} value={opt.value}>
-                <OptIcon className="size-3.5 text-muted-foreground" />
-                {opt.label}
-              </SelectItem>
-            )
-          })}
-        </SelectContent>
-      </Select>
-      <AddPropertyValueInput displayMode={displayMode} value={newValue} onChange={setNewValue} onKeyDown={handleKeyDown} vaultStatuses={vaultStatuses} locale={locale} />
-      <Button
-        size="icon-xs" onClick={() => onAdd(newKey, newValue, displayMode)}
-        disabled={!canSubmit} title={translate(locale, 'inspector.properties.addProperty')}
-        data-testid="add-property-confirm"
-      >
-        <Check className="size-3.5" />
-      </Button>
-      <Button size="icon-xs" variant="outline" onClick={onCancel} title={translate(locale, 'common.cancel')} data-testid="add-property-cancel">
-        <X className="size-3.5" />
-      </Button>
+          <Check className="size-3.5" />
+        </Button>
+        <Button size="icon-xs" variant="outline" onClick={onCancel} title={translate(locale, 'common.cancel')} data-testid="add-property-cancel">
+          <X className="size-3.5" />
+        </Button>
+      </div>
+    </div>
+  )
+
+  if (renderAsRow) {
+    return rowContent
+  }
+
+  return (
+    <div className={containerClassName} style={alignWithPropertyGrid ? PROPERTY_PANEL_GRID_STYLE : undefined} data-testid="add-property-form">
+      {rowContent}
     </div>
   )
 }

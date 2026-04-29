@@ -22,7 +22,7 @@ export function buildNewEntry({ path, slug, title, type, status }: NewEntryParam
     aliases: [], belongsTo: [], relatedTo: [],
     status, archived: false,
     modifiedAt: now, createdAt: now, fileSize: 0,
-    snippet: '', wordCount: 0, relationships: {}, icon: null, color: null, order: null, outgoingLinks: [], sidebarLabel: null, template: null, sort: null, view: null, visible: null, properties: {}, organized: false, favorite: false, favoriteIndex: null, listPropertiesDisplay: [], hasH1: false,
+    snippet: '', wordCount: 0, relationships: {}, icon: null, color: null, order: null, outgoingLinks: [], sidebarLabel: null, template: null, defaultFrontmatter: {}, defaultFrontmatterTypes: {}, sort: null, view: null, visible: null, properties: {}, organized: false, favorite: false, favoriteIndex: null, listPropertiesDisplay: [], hasH1: false,
   }
 }
 
@@ -81,11 +81,74 @@ export function resolveTemplate({ entries, typeName }: TemplateLookupParams): st
   return typeEntry?.template ?? DEFAULT_TEMPLATES[typeName] ?? null
 }
 
+type FrontmatterScalar = string | number | boolean | null
+type FrontmatterDefaults = Record<string, FrontmatterScalar>
+type FrontmatterDefaultSchema = { values: FrontmatterDefaults; types: Record<string, string> }
+
+function isFrontmatterScalar(value: unknown): value is FrontmatterScalar {
+  return value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+}
+
+function normalizeDefaultFrontmatter(value: VaultEntry['defaultFrontmatter']): FrontmatterDefaults {
+  if (!value) return {}
+  return Object.entries(value).reduce<FrontmatterDefaults>((acc, [key, item]) => {
+    if (isFrontmatterScalar(item)) acc[key] = item
+    return acc
+  }, {})
+}
+
+function quoteYamlString(value: string): string {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
+
+function formatYamlKey(key: string): string {
+  return /^[A-Za-z0-9_-]+$/.test(key) ? key : quoteYamlString(key)
+}
+
+function formatYamlValue(value: FrontmatterScalar): string {
+  if (value === null) return 'null'
+  if (typeof value === 'boolean') return value ? 'true' : 'false'
+  if (typeof value === 'number') return Number.isInteger(value) ? String(value) : String(value)
+
+  const needsQuoting =
+    value.length === 0
+    || /:\s/.test(value)
+    || /(^|\s)#/.test(value)
+    || value.startsWith('[')
+    || value.startsWith('{')
+    || /^(true|false|null)$/i.test(value)
+    || /^-?\d+(\.\d+)?$/.test(value)
+
+  return needsQuoting ? quoteYamlString(value) : value
+}
+
+function appendFrontmatterField(lines: string[], key: string, value: FrontmatterScalar) {
+  lines.push(`${formatYamlKey(key)}: ${formatYamlValue(value)}`)
+}
+
+function appendEmptyFrontmatterField(lines: string[], key: string) {
+  lines.push(`${formatYamlKey(key)}:`)
+}
+
+export interface TypeDefaultsLookupParams {
+  entries: VaultEntry[]
+  typeName: string
+}
+
+export function resolveTypeDefaultFrontmatter({ entries, typeName }: TypeDefaultsLookupParams): FrontmatterDefaultSchema {
+  const typeEntry = entries.find((entry) => entry.isA === 'Type' && entry.title === typeName)
+  return {
+    values: normalizeDefaultFrontmatter(typeEntry?.defaultFrontmatter),
+    types: { ...(typeEntry?.defaultFrontmatterTypes ?? {}) },
+  }
+}
+
 export interface NoteContentParams {
   title: string | null
   type: string
   status: string | null
   template?: string | null
+  defaultFrontmatter?: FrontmatterDefaultSchema
   initialEmptyHeading?: boolean
 }
 
@@ -96,11 +159,31 @@ function buildNoteBody({ template, initialEmptyHeading }: Pick<NoteContentParams
   return template ? `\n${template}` : ''
 }
 
-export function buildNoteContent({ title, type, status, template, initialEmptyHeading = false }: NoteContentParams): string {
+export function buildNoteContent({ title, type, status, template, defaultFrontmatter = { values: {}, types: {} }, initialEmptyHeading = false }: NoteContentParams): string {
   const lines = ['---']
-  if (title) lines.push(`title: ${title}`)
-  lines.push(`type: ${type}`)
-  if (status) lines.push(`status: ${status}`)
+  if (title) appendFrontmatterField(lines, 'title', title)
+  appendFrontmatterField(lines, 'type', type)
+
+  const fieldKeys = new Set([
+    ...Object.keys(defaultFrontmatter.types),
+    ...Object.keys(defaultFrontmatter.values),
+  ])
+
+  for (const key of fieldKeys) {
+    const value = defaultFrontmatter.values[key]
+    const normalized = key.trim().toLowerCase().replace(/\s+/g, '_')
+    if (normalized === 'title' || normalized === 'type') continue
+    if (normalized === 'status' && status !== null) continue
+
+    if (!(key in defaultFrontmatter.values) || value === null) {
+      appendEmptyFrontmatterField(lines, key)
+      continue
+    }
+
+    appendFrontmatterField(lines, key, value)
+  }
+
+  if (status !== null) appendFrontmatterField(lines, 'status', status)
   lines.push('---')
   const body = buildNoteBody({ template, initialEmptyHeading })
   return `${lines.join('\n')}\n${body}`
@@ -111,13 +194,14 @@ export interface NewNoteParams {
   type: string
   vaultPath: string
   template?: string | null
+  defaultFrontmatter?: FrontmatterDefaultSchema
 }
 
-export function resolveNewNote({ title, type, vaultPath, template }: NewNoteParams): { entry: VaultEntry; content: string } {
+export function resolveNewNote({ title, type, vaultPath, template, defaultFrontmatter }: NewNoteParams): { entry: VaultEntry; content: string } {
   const slug = slugify(title)
   const status = null
   const entry = buildNewEntry({ path: `${vaultPath}/${slug}.md`, slug, title, type, status })
-  return { entry, content: buildNoteContent({ title, type, status, template }) }
+  return { entry, content: buildNoteContent({ title, type, status, template, defaultFrontmatter }) }
 }
 
 export interface NewTypeParams {
@@ -330,7 +414,8 @@ async function createNamedNote({
   creationPath,
 }: NoteCreationRequest): Promise<boolean> {
   const template = resolveTemplate({ entries, typeName: type })
-  const plan = planNewNoteCreation({ entries, title, type, vaultPath, template })
+  const defaultFrontmatter = resolveTypeDefaultFrontmatter({ entries, typeName: type })
+  const plan = planNewNoteCreation({ entries, title, type, vaultPath, template, defaultFrontmatter })
   if (plan.status === 'blocked') {
     setToastMessage(plan.message)
     return false
@@ -472,9 +557,10 @@ async function createNoteImmediate(deps: ImmediateCreateDeps, type?: string): Pr
   const slug = generateUntitledFilename(deps.entries, noteType, deps.pendingSlugs)
   const title = slug_to_title(slug)
   const template = resolveTemplate({ entries: deps.entries, typeName: noteType })
+  const defaultFrontmatter = resolveTypeDefaultFrontmatter({ entries: deps.entries, typeName: noteType })
   const status = null
   const entry = buildNewEntry({ path: `${deps.vaultPath}/${slug}.md`, slug, title, type: noteType, status })
-  const content = buildNoteContent({ title: null, type: noteType, status, template, initialEmptyHeading: true })
+  const content = buildNoteContent({ title: null, type: noteType, status, template, defaultFrontmatter, initialEmptyHeading: true })
   const didPersist = await persistImmediateEntry(deps, entry, content)
   if (!didPersist) return false
 

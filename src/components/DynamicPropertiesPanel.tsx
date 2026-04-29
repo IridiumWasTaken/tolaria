@@ -5,7 +5,7 @@ import type { VaultEntry } from '../types'
 import type { FrontmatterValue } from './Inspector'
 import type { ParsedFrontmatter } from '../utils/frontmatter'
 import { usePropertyPanelState } from '../hooks/usePropertyPanelState'
-import { getEffectiveDisplayMode, detectPropertyType, DISPLAY_MODE_ICONS } from '../utils/propertyTypes'
+import { detectPropertyType, DISPLAY_MODE_ICONS } from '../utils/propertyTypes'
 import { SmartPropertyValueCell, DisplayModeSelector } from './PropertyValueCells'
 import { TypeSelector } from './TypeSelector'
 import { AddPropertyForm } from './AddPropertyForm'
@@ -111,6 +111,16 @@ const SUGGESTED_PROPERTY_MODES: Record<string, PropertyDisplayMode> = {
 
 function getSuggestedDisplayMode(key: string): PropertyDisplayMode {
   return SUGGESTED_PROPERTY_MODES[key] ?? 'text'
+}
+
+function resolveAutoDisplayMode(
+  key: string,
+  value: FrontmatterValue,
+  typePropertyModes: Record<string, string>,
+): PropertyDisplayMode {
+  const hinted = typePropertyModes[key]
+  if (hinted) return hinted as PropertyDisplayMode
+  return detectPropertyType(key, value)
 }
 
 function resolveMissingTypeName(entryIsA: string | null | undefined, availableTypes: string[]): string | null {
@@ -248,6 +258,7 @@ export function DynamicPropertiesPanel({
   const {
     editingKey, setEditingKey, showAddDialog, setShowAddDialog, displayOverrides,
     availableTypes, customColorKey, typeColorKeys, typeIconKeys, vaultStatuses, vaultTagsByKey, propertyEntries,
+    typePropertyModes,
     handleSaveValue, handleSaveList, handleAdd, handleDisplayModeChange,
   } = usePropertyPanelState({ entries, entryIsA: entry.isA, frontmatter, onUpdateProperty, onDeleteProperty, onAddProperty })
   const [pendingSuggestedKey, setPendingSuggestedKey] = useState<string | null>(null)
@@ -285,10 +296,12 @@ export function DynamicPropertiesPanel({
           onCreateMissingType={onCreateMissingType}
           locale={locale}
         />
-        {propertyEntries.map(([key, value]) => (
+        {propertyEntries.map(([key, value]) => {
+          const autoMode = resolveAutoDisplayMode(key, value, typePropertyModes)
+          return (
           <PropertyRow
             key={key} propKey={key} value={value}
-            editingKey={editingKey} displayMode={getEffectiveDisplayMode(key, value, displayOverrides)} autoMode={detectPropertyType(key, value)}
+            editingKey={editingKey} displayMode={displayOverrides[key] ?? autoMode} autoMode={autoMode}
             vaultStatuses={vaultStatuses}
             vaultTags={vaultTagsByKey[key] ?? []}
             onStartEdit={setEditingKey} onSave={handleSaveValue}
@@ -297,7 +310,8 @@ export function DynamicPropertiesPanel({
             onDisplayModeChange={handleDisplayModeChange}
             locale={locale}
           />
-        ))}
+          )
+        })}
         {pendingSuggestedKey && editingKey === pendingSuggestedKey && (
           <PropertyRow
             key={`pending:${pendingSuggestedKey}`}
